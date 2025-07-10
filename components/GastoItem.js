@@ -1,56 +1,56 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet } from 'react-native';
 
-export default function GastoItem({ gasto, onPress }) {
+export default function GastoItem({ item }) {
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.card}>
-        <Text style={styles.nome}>{gasto.nomeGasto || gasto.nome}</Text>
-        <View style={styles.infoRow}>
-          <Text style={styles.valor}>R$ {gasto.valor}</Text>
-          <Text style={styles.categoria}>{gasto.categoria}</Text>
-          <Text style={styles.data}>{gasto.data}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+    <View style={styles.item}>
+      <Text style={styles.descricao}>{item.descricao}</Text>
+      <Text style={[styles.valor, item.tipo === 'despesa' ? styles.despesa : styles.receita]}>
+        {item.tipo === 'despesa' ? '-' : '+'} R$ {parseFloat(item.valor).toFixed(2)}
+      </Text>
+      <Text style={styles.data}>{item.data}</Text>
+      {item.tag ? <Text style={styles.tag}>#{item.tag}</Text> : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
+  item: {
     backgroundColor: '#fff',
-    borderRadius: 12,
     padding: 16,
-    marginVertical: 8,
-    marginHorizontal: 12,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
+    borderRadius: 12,
+    marginBottom: 12,
+    elevation: 1,
   },
-  nome: {
-    fontSize: 18,
-    fontWeight: '700',
+  descricao: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#333',
-    marginBottom: 8,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
   },
   valor: {
     fontSize: 16,
-    color: '#4B7BEC',
-    fontWeight: '600',
+    marginTop: 4,
+    fontWeight: 'bold',
   },
-  categoria: {
-    fontSize: 16,
-    color: '#666',
+  despesa: {
+    color: '#E53935',
+  },
+  receita: {
+    color: '#4CAF50',
   },
   data: {
-    fontSize: 14,
-    color: '#999',
+    fontSize: 12,
+    color: '#888',
+    marginTop: 2,
+  },
+  tag: {
+    marginTop: 6,
+    fontSize: 12,
+    backgroundColor: '#E0E0E0',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    color: '#555',
   },
 });

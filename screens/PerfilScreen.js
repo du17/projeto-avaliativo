@@ -1,319 +1,232 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TextInput,
   StyleSheet,
   TouchableOpacity,
-  Modal,
   Image,
-  SafeAreaView,
+  Modal,
   Alert,
-  StatusBar,
-  Platform,
-  KeyboardAvoidingView,
-  Animated,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
+import * as Camera from 'expo-camera';
 
-const avatarGenerico =
-  'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+const CHAVE_PERFIL = 'perfil_usuario';
 
 export default function PerfilScreen() {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
+  const [foto, setFoto] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [avatar, setAvatar] = useState(null);
-
-  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    AsyncStorage.getItem('@perfil_nome').then((valor) => {
-      if (valor !== null) setNome(valor);
-    });
-    AsyncStorage.getItem('@perfil_email').then((valor) => {
-      if (valor !== null) setEmail(valor);
-    });
-    AsyncStorage.getItem('@perfil_avatar').then((valor) => {
-      if (valor !== null) setAvatar(valor);
-    });
+    carregarPerfil();
   }, []);
 
-  useEffect(() => {
-    AsyncStorage.setItem('@perfil_nome', nome).catch(() => {
-      Alert.alert('Erro', 'Não foi possível salvar o nome');
-    });
-  }, [nome]);
-
-  useEffect(() => {
-    AsyncStorage.setItem('@perfil_email', email).catch(() => {
-      Alert.alert('Erro', 'Não foi possível salvar o email');
-    });
-  }, [email]);
-
-  useEffect(() => {
-    if (avatar) {
-      AsyncStorage.setItem('@perfil_avatar', avatar).catch(() => {
-        Alert.alert('Erro', 'Não foi possível salvar o avatar');
-      });
+  const carregarPerfil = async () => {
+    try {
+      const dados = await AsyncStorage.getItem(CHAVE_PERFIL);
+      if (dados) {
+        const perfil = JSON.parse(dados);
+        setNome(perfil.nome || '');
+        setEmail(perfil.email || '');
+        setFoto(perfil.foto || null);
+      }
+    } catch (e) {
+      console.error('Erro ao carregar perfil:', e);
     }
-  }, [avatar]);
+  };
 
-  useEffect(() => {
-    if (modalVisible) {
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [modalVisible, fadeAnim]);
+  const salvarPerfil = async () => {
+    const perfil = { nome, email, foto };
+    await AsyncStorage.setItem(CHAVE_PERFIL, JSON.stringify(perfil));
+    Alert.alert('Sucesso', 'Perfil atualizado com sucesso!');
+  };
 
-  const escolherAvatarGenerico = () => {
-    const id = Math.floor(Math.random() * 70) + 1;
-    const imageUrl = `https://i.pravatar.cc/150?img=${id}&t=${Date.now()}`;
-    setAvatar(imageUrl);
+  const escolherFotoAleatoria = () => {
+    const urls = [
+      'https://i.pravatar.cc/300?img=1',
+      'https://i.pravatar.cc/300?img=12',
+      'https://i.pravatar.cc/300?img=20',
+    ];
+    const aleatoria = urls[Math.floor(Math.random() * urls.length)];
+    setFoto(aleatoria);
     setModalVisible(false);
   };
 
-  const escolherImagemDoDispositivo = async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permissão negada',
-          'Permita o acesso à galeria para escolher a foto.'
-        );
-        return;
-      }
+  const escolherDaGaleria = async () => {
+    const resultado = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+    });
 
-      const resultado = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 1,
-      });
-
-      if (!resultado.canceled) {
-        setAvatar(resultado.assets[0].uri);
-      }
-    } catch (e) {
-      Alert.alert('Erro', 'Erro ao abrir a galeria.');
-    } finally {
-      setModalVisible(false);
+    if (!resultado.canceled && resultado.assets.length > 0) {
+      setFoto(resultado.assets[0].uri);
     }
+
+    setModalVisible(false);
+  };
+
+  const tirarFotoCamera = async () => {
+    const { status } = await Camera.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permissão negada', 'Permita o acesso à câmera.');
+      return;
+    }
+
+    const resultado = await ImagePicker.launchCameraAsync({
+      quality: 1,
+    });
+
+    if (!resultado.canceled && resultado.assets.length > 0) {
+      setFoto(resultado.assets[0].uri);
+    }
+
+    setModalVisible(false);
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.container}
-      >
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Meu Perfil</Text>
-        </View>
+    <View style={styles.container}>
+      <Text style={styles.titulo}>Perfil</Text>
 
-        <TouchableOpacity
-          style={styles.avatarContainer}
-          onPress={() => setModalVisible(true)}
-          accessibilityRole="imagebutton"
-          accessibilityLabel="Alterar foto do perfil"
-        >
-          <Image
-            source={{ uri: avatar || avatarGenerico }}
-            style={styles.avatar}
-            resizeMode="cover"
-          />
-          <View style={styles.cameraIconWrapper}>
-            <Text style={styles.cameraIcon}>📷</Text>
+      <TouchableOpacity onPress={() => setModalVisible(true)}>
+        <Image
+          source={
+            foto
+              ? { uri: foto }
+              : require('../assets/avatar-placeholder.png')
+          }
+          style={styles.avatar}
+        />
+        <Text style={styles.avatarTexto}>Alterar Foto</Text>
+      </TouchableOpacity>
+
+      <TextInput
+        style={styles.input}
+        placeholder="Nome"
+        value={nome}
+        onChangeText={setNome}
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="E-mail"
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+      />
+
+      <TouchableOpacity style={styles.botaoSalvar} onPress={salvarPerfil}>
+        <Text style={styles.textoSalvar}>Salvar Perfil</Text>
+      </TouchableOpacity>
+
+      <Modal visible={modalVisible} transparent animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitulo}>Escolher Foto</Text>
+
+            <TouchableOpacity style={styles.modalBotao} onPress={escolherFotoAleatoria}>
+              <Text style={styles.modalTexto}>📸 Foto aleatória</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.modalBotao} onPress={escolherDaGaleria}>
+              <Text style={styles.modalTexto}>🖼️ Escolher da galeria</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.modalBotao} onPress={tirarFotoCamera}>
+              <Text style={styles.modalTexto}>🤳 Tirar com a câmera</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <Text style={styles.modalCancelar}>Cancelar</Text>
+            </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-
-        <View style={styles.form}>
-          <TextInput
-            placeholder="Nome"
-            style={styles.input}
-            value={nome}
-            onChangeText={setNome}
-            placeholderTextColor="#999"
-            accessibilityLabel="Campo para inserir nome"
-          />
-          <TextInput
-            placeholder="Email"
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            placeholderTextColor="#999"
-            accessibilityLabel="Campo para inserir email"
-          />
         </View>
-
-        <Modal
-          visible={modalVisible}
-          transparent
-          animationType="none"
-          onRequestClose={() => setModalVisible(false)}
-        >
-          <TouchableOpacity
-            activeOpacity={1}
-            onPressOut={() => setModalVisible(false)}
-            style={styles.modalOverlay}
-          >
-            <Animated.View style={[styles.modalContainer, { opacity: fadeAnim }]}>
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={escolherAvatarGenerico}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.modalButtonText}>Avatar genérico</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={escolherImagemDoDispositivo}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.modalButtonText}>Escolher foto</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalCancelButton]}
-                onPress={() => setModalVisible(false)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.modalButtonText, styles.modalCancelText]}>Cancelar</Text>
-              </TouchableOpacity>
-            </Animated.View>
-          </TouchableOpacity>
-        </Modal>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
   container: {
+    padding: 20,
+    backgroundColor: '#F0F4F8',
     flex: 1,
-    paddingHorizontal: 24,
     alignItems: 'center',
-    justifyContent: 'flex-start',
   },
-  header: {
-    width: '100%',
-    paddingVertical: 32,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    marginBottom: 32,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1f2937',
-    textAlign: 'center',
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginBottom: 40,
+  titulo: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 20,
   },
   avatar: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    borderWidth: 3,
-    borderColor: '#4B7BEC',
-    backgroundColor: '#d1d5db',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#ddd',
+    alignSelf: 'center',
   },
-  cameraIconWrapper: {
-    position: 'absolute',
-    bottom: 4,
-    right: 4,
-    backgroundColor: '#4B7BEC',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#4B7BEC',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.7,
-    shadowRadius: 6,
-  },
-  cameraIcon: {
-    color: '#fff',
-    fontSize: 22,
-  },
-  form: {
-    width: '100%',
+  avatarTexto: {
+    color: '#4A90E2',
+    textAlign: 'center',
+    marginTop: 6,
   },
   input: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    fontSize: 18,
-    marginBottom: 20,
-    color: '#374151',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(31, 41, 55, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-  },
-  modalContainer: {
     width: '100%',
     backgroundColor: '#fff',
-    borderRadius: 20,
-    paddingVertical: 28,
-    paddingHorizontal: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 10,
+    padding: 14,
+    marginTop: 16,
+    borderRadius: 10,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#ccc',
   },
-  modalButton: {
-    backgroundColor: '#4B7BEC',
-    borderRadius: 14,
-    paddingVertical: 16,
-    marginVertical: 8,
+  botaoSalvar: {
+    backgroundColor: '#4CAF50',
+    padding: 14,
+    borderRadius: 10,
+    marginTop: 24,
+    width: '100%',
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#4B7BEC',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
   },
-  modalButtonText: {
+  textoSalvar: {
     color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: '#00000088',
+  },
+  modalBox: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderTopRightRadius: 20,
+    borderTopLeftRadius: 20,
+    alignItems: 'stretch',
+  },
+  modalTitulo: {
     fontSize: 18,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+    fontWeight: 'bold',
+    marginBottom: 14,
+    textAlign: 'center',
   },
-  modalCancelButton: {
-    backgroundColor: '#ef4444',
+  modalBotao: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
   },
-  modalCancelText: {
-    fontWeight: '700',
+  modalTexto: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  modalCancelar: {
+    color: '#E53935',
+    textAlign: 'center',
+    marginTop: 14,
+    fontSize: 16,
   },
 });

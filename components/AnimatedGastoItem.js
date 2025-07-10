@@ -1,144 +1,86 @@
 import React from 'react';
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  Text,
-} from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withSpring,
-} from 'react-native-reanimated';
-import { Swipeable } from 'react-native-gesture-handler';
-import { Ionicons } from '@expo/vector-icons';
+import { Animated, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
-export default function AnimatedGastoItem({ gasto, onPress, onExcluir }) {
-  const scale = useSharedValue(1);
-  const translateY = useSharedValue(0);
+export default function AnimatedGastoItem({ item, onDelete }) {
+  const fadeAnim = new Animated.Value(1);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: scale.value },
-      { translateY: translateY.value },
-    ],
-    shadowOpacity: withTiming(scale.value === 1 ? 0.15 : 0.3),
-  }));
-
-  const handlePressIn = () => {
-    scale.value = withTiming(1.03, { duration: 150 });
-    translateY.value = withTiming(-4, { duration: 150 });
+  const handleDelete = () => {
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      onDelete(item.id);
+    });
   };
-
-  const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 12, stiffness: 120 });
-    translateY.value = withSpring(0, { damping: 12, stiffness: 120 });
-  };
-
-  const renderRightActions = () => (
-    <TouchableOpacity
-      style={styles.botaoExcluir}
-      onPress={onExcluir}
-      accessibilityRole="button"
-      accessibilityLabel="Excluir gasto"
-    >
-      <Ionicons name="trash" size={28} color="#fff" />
-    </TouchableOpacity>
-  );
 
   return (
-    <Swipeable
-      renderRightActions={renderRightActions}
-      overshootRight={false}
-    >
-      <Animated.View style={[styles.container, animatedStyle]}>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={onPress}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          accessibilityRole="button"
-          accessibilityLabel={`Gasto: ${gasto.descricao}, valor R$${gasto.valor.toFixed(2)}, categoria ${gasto.tag?.nome}, data ${gasto.data}`}
-        >
-          <View style={styles.card}>
-            <View style={styles.topRow}>
-              <Text style={styles.nome} numberOfLines={1} ellipsizeMode="tail">
-                {gasto.descricao}
-              </Text>
-              <Text style={styles.data}>{gasto.data}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.categoria}>{gasto.tag?.nome}</Text>
-              <Text style={styles.valor}>R$ {gasto.valor.toFixed(2)}</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Animated.View>
-    </Swipeable>
+    <Animated.View style={[styles.item, { opacity: fadeAnim }]}>
+      <View>
+        <Text style={styles.descricao}>{item.descricao}</Text>
+        <Text style={[styles.valor, item.tipo === 'despesa' ? styles.despesa : styles.receita]}>
+          {item.tipo === 'despesa' ? '-' : '+'} R$ {parseFloat(item.valor).toFixed(2)}
+        </Text>
+        <Text style={styles.data}>{item.data}</Text>
+        {item.tag ? <Text style={styles.tag}>#{item.tag}</Text> : null}
+      </View>
+
+      <TouchableOpacity style={styles.botaoApagar} onPress={handleDelete}>
+        <Text style={styles.txtApagar}>X</Text>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    marginVertical: 8,
-    marginHorizontal: 16,
-    borderRadius: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    backgroundColor: 'transparent',
-  },
-  card: {
+  item: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     backgroundColor: '#fff',
-    borderRadius: 14,
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    elevation: 5,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 10,
+    elevation: 1,
   },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  nome: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#222',
-    flexShrink: 1,
-  },
-  data: {
-    fontSize: 14,
-    color: '#999',
-    fontWeight: '500',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  categoria: {
+  descricao: {
     fontSize: 16,
-    color: '#666',
-    fontStyle: 'italic',
+    fontWeight: 'bold',
   },
   valor: {
-    fontSize: 16,
-    color: '#4B7BEC',
-    fontWeight: '600',
+    fontSize: 15,
+    marginTop: 4,
   },
-  botaoExcluir: {
-    backgroundColor: '#d9534f',
+  despesa: {
+    color: '#E53935',
+  },
+  receita: {
+    color: '#4CAF50',
+  },
+  data: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 2,
+  },
+  tag: {
+    marginTop: 6,
+    fontSize: 12,
+    backgroundColor: '#E0E0E0',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+  },
+  botaoApagar: {
+    backgroundColor: '#F44336',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    width: 80,
-    borderRadius: 14,
-    marginVertical: 8,
-    marginRight: 16,
-    shadowColor: '#d9534f',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
+    alignSelf: 'center',
+  },
+  txtApagar: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });
